@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState, useMemo } from "react";
 import { useReveal } from "@/hooks/use-reveal";
 import logoAsset from "@/assets/logo.asset.json";
 import heroImg from "@/assets/hero.jpg";
@@ -299,41 +300,170 @@ function Reserve() {
             </ol>
           </div>
 
-          <div className="reveal reveal-delay-2 rounded-3xl glass gold-border p-8">
-            <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-full bg-whatsapp/15 grid place-items-center">
-                <WhatsAppIcon className="h-6 w-6 text-whatsapp" />
-              </div>
-              <div>
-                <div className="font-display text-2xl font-bold">Réservation WhatsApp</div>
-                <div className="text-xs text-muted-foreground">Réponse rapide, 7j/7</div>
-              </div>
-            </div>
-            <div className="mt-6 space-y-3">
-              {PHONES.map((p) => (
-                <a
-                  key={p}
-                  href={waLink(`Bonjour Rouling Car, je souhaite réserver une voiture.`)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center justify-between rounded-2xl bg-secondary/60 hover:bg-secondary px-5 py-4 transition gold-border"
-                >
-                  <span className="flex items-center gap-3">
-                    <PhoneIcon className="h-4 w-4 text-gold" />
-                    <span className="font-medium">{p}</span>
-                  </span>
-                  <WhatsAppIcon className="h-5 w-5 text-whatsapp" />
-                </a>
-              ))}
-            </div>
-            <div className="mt-6 text-sm text-foreground/70 flex items-start gap-2">
-              <MapPin className="h-4 w-4 text-gold mt-0.5" />
-              Rabat, Maroc — Livraison gratuite à l'aéroport, à votre hôtel ou à la gare.
-            </div>
-          </div>
+          <BookingForm />
         </div>
       </div>
     </section>
+  );
+}
+
+function BookingForm() {
+  const today = new Date().toISOString().slice(0, 10);
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  const [car, setCar] = useState(cars[0].name);
+  const [pickup, setPickup] = useState(today);
+  const [ret, setRet] = useState(tomorrow);
+  const [location, setLocation] = useState("Aéroport Rabat-Salé");
+  const [name, setName] = useState("");
+
+  const { days, total } = useMemo(() => {
+    const p = new Date(pickup).getTime();
+    const r = new Date(ret).getTime();
+    const d = Math.max(1, Math.ceil((r - p) / 86400000));
+    const price = cars.find((c) => c.name === car)?.price ?? 0;
+    return { days: d, total: d * price };
+  }, [car, pickup, ret]);
+
+  const fmt = (s: string) =>
+    new Date(s).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+
+  const message = [
+    `Bonjour Rouling Car 👋`,
+    name ? `Je suis ${name}.` : ``,
+    `Je souhaite réserver la *${car}*.`,
+    `📅 Prise en charge : ${fmt(pickup)}`,
+    `📅 Retour : ${fmt(ret)}`,
+    `📍 Lieu : ${location}`,
+    `⏱️ Durée : ${days} jour(s)`,
+    `💰 Total estimé : ${total} DH`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const invalid = new Date(ret) <= new Date(pickup);
+
+  return (
+    <div className="reveal reveal-delay-2 rounded-3xl glass gold-border p-6 sm:p-8">
+      <div className="flex items-center gap-3">
+        <div className="h-12 w-12 rounded-full bg-whatsapp/15 grid place-items-center">
+          <WhatsAppIcon className="h-6 w-6 text-whatsapp" />
+        </div>
+        <div>
+          <div className="font-display text-2xl font-bold">Réservation rapide</div>
+          <div className="text-xs text-muted-foreground">Sélectionnez vos dates — envoi via WhatsApp</div>
+        </div>
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Field label="Véhicule">
+          <select
+            value={car}
+            onChange={(e) => setCar(e.target.value)}
+            className="input-base"
+          >
+            {cars.map((c) => (
+              <option key={c.name} value={c.name}>
+                {c.name} — {c.price} DH/j
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Lieu de prise en charge">
+          <input
+            type="text"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            className="input-base"
+            placeholder="Aéroport, hôtel, gare…"
+          />
+        </Field>
+        <Field label="Date de prise en charge">
+          <input
+            type="date"
+            min={today}
+            value={pickup}
+            onChange={(e) => setPickup(e.target.value)}
+            className="input-base"
+          />
+        </Field>
+        <Field label="Date de retour">
+          <input
+            type="date"
+            min={pickup}
+            value={ret}
+            onChange={(e) => setRet(e.target.value)}
+            className="input-base"
+          />
+        </Field>
+        <Field label="Votre nom (optionnel)" className="sm:col-span-2">
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="input-base"
+            placeholder="Ex. Yassine B."
+          />
+        </Field>
+      </div>
+
+      <div className="mt-5 flex items-center justify-between rounded-2xl bg-secondary/60 gold-border px-5 py-4">
+        <div className="text-sm text-foreground/70">
+          {days} jour(s) × {cars.find((c) => c.name === car)?.price} DH
+        </div>
+        <div className="text-2xl font-bold text-gradient-gold">{total} DH</div>
+      </div>
+
+      <a
+        href={invalid ? undefined : waLink(message)}
+        target="_blank"
+        rel="noreferrer"
+        aria-disabled={invalid}
+        onClick={(e) => invalid && e.preventDefault()}
+        className={`mt-5 inline-flex w-full justify-center items-center gap-2 rounded-full bg-primary text-primary-foreground px-6 py-3.5 font-semibold transition shadow-lg shadow-primary/30 ${invalid ? "opacity-50 cursor-not-allowed" : "hover:brightness-110"}`}
+      >
+        <WhatsAppIcon className="h-5 w-5" />
+        {invalid ? "Choisissez une date de retour valide" : "Réserver sur WhatsApp"}
+      </a>
+
+      <div className="mt-4 space-y-2">
+        {PHONES.map((p) => (
+          <a
+            key={p}
+            href={`tel:${p.replace(/\s/g, "")}`}
+            className="flex items-center justify-between rounded-xl bg-secondary/40 hover:bg-secondary px-4 py-2.5 text-sm transition"
+          >
+            <span className="flex items-center gap-2">
+              <PhoneIcon className="h-4 w-4 text-gold" />
+              {p}
+            </span>
+            <span className="text-xs text-muted-foreground">Appeler</span>
+          </a>
+        ))}
+      </div>
+      <div className="mt-4 text-sm text-foreground/70 flex items-start gap-2">
+        <MapPin className="h-4 w-4 text-gold mt-0.5" />
+        Rabat, Maroc — Livraison gratuite à l'aéroport, à votre hôtel ou à la gare.
+      </div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  className = "",
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className={`block ${className}`}>
+      <span className="block text-xs font-medium text-foreground/70 mb-1.5 uppercase tracking-wider">
+        {label}
+      </span>
+      {children}
+    </label>
   );
 }
 
