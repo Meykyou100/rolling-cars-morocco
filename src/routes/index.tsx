@@ -466,11 +466,6 @@ function Field({
     </label>
   );
 }
-        </div>
-      </div>
-    </section>
-  );
-}
 
 function About() {
   const features = [
