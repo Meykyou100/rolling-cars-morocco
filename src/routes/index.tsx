@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState, useMemo } from "react";
 import { useReveal } from "@/hooks/use-reveal";
 import logoAsset from "@/assets/logo.asset.json";
 import heroImg from "@/assets/hero.jpg";
