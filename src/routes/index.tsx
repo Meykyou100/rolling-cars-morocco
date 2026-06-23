@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useReveal } from "@/hooks/use-reveal";
-import logoAsset from "@/assets/logo.asset.json";
+import logoImg from "@/assets/rolling-car-logo-transparent.png";
 import heroImg from "@/assets/hero.jpg";
 import daciaImg from "@/assets/dacia-logan.jpg";
 import clioImg from "@/assets/renault-clio.jpg";
 import tucsonImg from "@/assets/hyundai-tucson.jpg";
+import { isLoggedIn, isVehicleAvailable, vehicles as getAdminVehicles } from "@/lib/admin-data";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -25,7 +26,9 @@ const PHONES = ["+212 661 213 700", "+212 661 757 405"] as const;
 const WHATSAPP_NUMBER = "212661213700"; // primary
 
 type Car = {
+  id: string;
   name: string;
+  model: string;
   category: string;
   image: string;
   price: number;
@@ -33,12 +36,13 @@ type Car = {
   transmission: "Manuelle" | "Automatique";
   fuel: "Essence" | "Diesel";
   ac: boolean;
+  status: "Disponible" | "Réservé" | "Indisponible" | "Maintenance";
 };
 
 const cars: Car[] = [
-  { name: "Dacia Logan", category: "Économique", image: daciaImg, price: 200, seats: 5, transmission: "Manuelle", fuel: "Diesel", ac: true },
-  { name: "Renault Clio 5", category: "Citadine", image: clioImg, price: 280, seats: 5, transmission: "Manuelle", fuel: "Essence", ac: true },
-  { name: "Hyundai Tucson", category: "SUV", image: tucsonImg, price: 600, seats: 5, transmission: "Automatique", fuel: "Diesel", ac: true },
+  { id: "logan", name: "Dacia Logan", model: "2024", category: "Économique", image: daciaImg, price: 200, seats: 5, transmission: "Manuelle", fuel: "Diesel", ac: true, status: "Disponible" },
+  { id: "clio", name: "Renault Clio 5", model: "2024", category: "Citadine", image: clioImg, price: 280, seats: 5, transmission: "Manuelle", fuel: "Essence", ac: true, status: "Disponible" },
+  { id: "tucson", name: "Hyundai Tucson", model: "2024", category: "SUV", image: tucsonImg, price: 600, seats: 5, transmission: "Automatique", fuel: "Diesel", ac: true, status: "Disponible" },
 ];
 
 function waLink(message: string) {
@@ -47,39 +51,55 @@ function waLink(message: string) {
 
 function Index() {
   useReveal();
+  const [reservedCar, setReservedCar] = useState<Car | null>(null);
+  const [fleet, setFleet] = useState<Car[]>(cars);
+  useEffect(() => {
+    const syncFleet = () => setFleet(getAdminVehicles().filter((vehicle) => !vehicle.archived).map((vehicle) => ({ ...vehicle, model: vehicle.model || "—", ac: true })));
+    syncFleet();
+    window.addEventListener("rouling-data", syncFleet);
+    return () => window.removeEventListener("rouling-data", syncFleet);
+  }, []);
 
   return (
     <div className="min-h-screen overflow-x-hidden">
       <Nav />
       <Hero />
+      <TrustBadges />
       <Stats />
-      <Fleet />
+      <Fleet cars={fleet} onReserve={setReservedCar} />
       <Reserve />
+      <WhyChooseUs />
+      <Testimonials />
       <About />
+      <FAQ />
       <Contact />
       <Footer />
       <FloatingWhatsApp />
+      {reservedCar && <ReservationModal car={reservedCar} onClose={() => setReservedCar(null)} />}
     </div>
   );
 }
 
 function Logo({ className = "h-12" }: { className?: string }) {
-  return <img src={logoAsset.url} alt="Rouling Car" className={className} />;
+  return <img src={logoImg} alt="Rolling Car" className={className} />;
 }
 
 function Nav() {
+  const [admin, setAdmin] = useState(false);
+  useEffect(() => setAdmin(isLoggedIn()), []);
   return (
     <header className="fixed top-0 inset-x-0 z-50">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-3">
         <div className="glass rounded-full px-4 sm:px-6 py-2.5 flex items-center justify-between">
           <a href="#top" className="flex items-center gap-2">
-            <Logo className="h-10 w-auto" />
+            <Logo className="h-12 w-auto" />
           </a>
           <nav className="hidden md:flex items-center gap-7 text-sm text-foreground/80">
             <a href="#fleet" className="hover:text-gold transition-colors">Notre Flotte</a>
             <a href="#reserve" className="hover:text-gold transition-colors">Réservation</a>
             <a href="#about" className="hover:text-gold transition-colors">À propos</a>
             <a href="#contact" className="hover:text-gold transition-colors">Contact</a>
+            {admin && <a href="/admin/dashboard" className="rounded-full border border-gold/30 px-3 py-1 text-gold">Admin</a>}
           </nav>
           <a
             href={waLink("Bonjour Rouling Car, je souhaite réserver une voiture.")}
@@ -98,7 +118,7 @@ function Nav() {
 
 function Hero() {
   return (
-    <section id="top" className="relative pt-32 pb-24 min-h-[92vh] flex items-center">
+    <section id="top" className="relative pt-36 pb-20 sm:pb-28 min-h-[94vh] flex items-center">
       <div className="absolute inset-0 -z-10">
         <img src={heroImg} alt="" className="h-full w-full object-cover opacity-40" />
         <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/70 to-background" />
@@ -115,7 +135,7 @@ function Hero() {
             <span className="h-1.5 w-1.5 rounded-full bg-gold" />
             Agence à Rabat, Maroc
           </div>
-          <h1 className="reveal reveal-delay-1 mt-5 text-5xl sm:text-6xl lg:text-7xl font-bold leading-[1.05]">
+          <h1 className="reveal reveal-delay-1 mt-5 max-w-3xl text-5xl sm:text-6xl lg:text-7xl font-bold leading-[1.02]">
             Roulez avec <span className="text-gradient-red">style</span>,<br/>
             <span className="text-gradient-gold">partout au Maroc.</span>
           </h1>
@@ -123,18 +143,18 @@ function Hero() {
             Rouling Car — votre partenaire de confiance pour la location de voitures à Rabat.
             Une flotte récente, des prix justes, une réservation en quelques secondes via WhatsApp.
           </p>
-          <div className="reveal reveal-delay-3 mt-8 flex flex-wrap items-center gap-3">
+          <div className="reveal reveal-delay-3 mt-9 flex flex-wrap items-center gap-3">
             <a
               href={waLink("Bonjour Rouling Car, je souhaite réserver une voiture.")}
               target="_blank"
               rel="noreferrer"
-              className="group inline-flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-6 py-3.5 font-semibold hover:brightness-110 transition shadow-lg shadow-primary/30"
+              className="group inline-flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-7 py-4 font-semibold hover:brightness-110 transition shadow-xl shadow-primary/35"
             >
               <WhatsAppIcon className="h-5 w-5" />
               Réserver sur WhatsApp
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </a>
-            <a href="#fleet" className="inline-flex items-center gap-2 rounded-full glass gold-border px-6 py-3.5 font-semibold text-gold hover:bg-gold/10 transition">
+            <a href="#fleet" className="inline-flex items-center gap-2 rounded-full glass gold-border px-7 py-4 font-semibold text-gold hover:bg-gold/10 transition">
               Voir la flotte
             </a>
           </div>
@@ -154,11 +174,14 @@ function Hero() {
         </div>
 
         <div className="lg:col-span-5 relative reveal reveal-delay-2">
-          <div className="relative rounded-3xl glass gold-border p-6 anim-float">
+          <div className="relative rounded-[2rem] glass gold-border p-4 sm:p-6 shadow-2xl shadow-black/40 anim-float">
             <div className="absolute -top-3 left-6 px-3 py-1 rounded-full bg-gold text-gold-foreground text-[11px] font-semibold tracking-wider">
               OFFRE DU JOUR
             </div>
-            <img src={tucsonImg} alt="Hyundai Tucson" className="w-full h-56 object-cover rounded-2xl" width={1024} height={1024} />
+            <div className="relative overflow-hidden rounded-2xl bg-white/95">
+              <img src={tucsonImg} alt="Hyundai Tucson" className="w-full h-60 object-contain p-3" width={1024} height={1024} />
+              <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/20 to-transparent" />
+            </div>
             <div className="mt-5 flex items-end justify-between">
               <div>
                 <div className="text-xs text-gold uppercase tracking-widest">SUV Premium</div>
@@ -202,7 +225,33 @@ function Stats() {
   );
 }
 
-function Fleet() {
+function TrustBadges() {
+  const badges = [
+    ["Livraison gratuite", "Rabat, aéroport & hôtels", TruckIcon],
+    ["Assurance incluse", "Roulez l'esprit léger", ShieldIcon],
+    ["Réservation WhatsApp", "Réponse en quelques minutes", WhatsAppIcon],
+    ["Véhicules récents", "Contrôlés et entretenus", SparkIcon],
+    ["Assistance 24/7", "Toujours à vos côtés", HeadsetIcon],
+    ["Prix transparents", "Aucun frais caché", Check],
+  ] as const;
+  return (
+    <section className="relative z-10 -mt-8 pb-8">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-2 lg:grid-cols-6 overflow-hidden rounded-3xl glass gold-border shadow-2xl shadow-black/20">
+          {badges.map(([title, copy, Icon]) => (
+            <div key={title} className="group min-h-32 border-b border-r border-gold/15 p-4 sm:p-5 last:border-r-0 lg:border-b-0">
+              <Icon className="h-5 w-5 text-gold transition-transform duration-300 group-hover:scale-110" />
+              <div className="mt-3 text-sm font-semibold leading-tight">{title}</div>
+              <div className="mt-1 text-[11px] leading-snug text-foreground/55">{copy}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Fleet({ cars, onReserve }: { cars: Car[]; onReserve: (car: Car) => void }) {
   return (
     <section id="fleet" className="py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -219,7 +268,7 @@ function Fleet() {
 
         <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {cars.map((c, i) => (
-            <CarCard key={c.name} car={c} delay={i} />
+            <CarCard key={c.name} car={c} delay={i} onReserve={onReserve} />
           ))}
         </div>
       </div>
@@ -227,26 +276,30 @@ function Fleet() {
   );
 }
 
-function CarCard({ car, delay }: { car: Car; delay: number }) {
+function CarCard({ car, delay, onReserve }: { car: Car; delay: number; onReserve: (car: Car) => void }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const available = isVehicleAvailable({ ...car, description: "" }, today, today);
+  const availability = available ? "Disponible aujourd’hui" : car.status === "Maintenance" ? "Maintenance" : car.status === "Indisponible" ? "Sur demande" : "Réservé";
   const msg = `Bonjour Rouling Car 👋,\nJe souhaite réserver la *${car.name}* (${car.price} DH/jour).\n\nDates : \nLieu de prise en charge : `;
   return (
-    <article className={`reveal reveal-delay-${(delay % 3) + 1} group relative rounded-3xl glass gold-border overflow-hidden hover:-translate-y-1 transition-transform duration-500`}>
-      <div className="relative h-52 overflow-hidden bg-gradient-to-br from-secondary to-card">
+    <article className={`reveal reveal-delay-${(delay % 3) + 1} group relative flex h-full flex-col rounded-[1.75rem] glass gold-border overflow-hidden shadow-xl shadow-black/20 hover:-translate-y-2 hover:border-gold/70 transition-all duration-500`}>
+      <div className="relative h-64 overflow-hidden bg-secondary">
         <img
           src={car.image}
           alt={car.name}
           loading="lazy"
           width={1024}
           height={1024}
-          className="h-full w-full object-contain p-4 transition-transform duration-700 group-hover:scale-110"
+          className="relative z-10 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
         />
         <span className="absolute top-3 left-3 text-[10px] uppercase tracking-widest px-2 py-1 rounded-full bg-background/70 gold-border text-gold">
           {car.category}
         </span>
+        <span className={`absolute top-3 right-3 z-10 rounded-full px-3 py-1.5 text-[10px] font-bold shadow-lg ring-1 ${available ? "bg-emerald-600 text-white shadow-emerald-950/50 ring-emerald-300/60" : "bg-red-600 text-white shadow-red-950/50 ring-red-300/60"}`}>{availability}</span>
       </div>
-      <div className="p-5">
+      <div className="flex flex-1 flex-col p-5 sm:p-6">
         <div className="flex items-end justify-between">
-          <h3 className="font-display text-xl font-bold">{car.name}</h3>
+          <div><h3 className="font-display text-xl font-bold">{car.name}</h3><div className="mt-0.5 text-xs font-medium text-gold">Modèle : {car.model || "—"}</div></div>
           <div className="text-right">
             <div className="text-2xl font-bold text-gradient-gold">{car.price} <span className="text-sm">DH</span></div>
             <div className="text-[11px] text-muted-foreground">/ jour</div>
@@ -258,14 +311,13 @@ function CarCard({ car, delay }: { car: Car; delay: number }) {
           <li className="flex items-center gap-2"><FuelIcon className="h-3.5 w-3.5 text-gold" /> {car.fuel}</li>
           <li className="flex items-center gap-2"><SnowIcon className="h-3.5 w-3.5 text-gold" /> Climatisation</li>
         </ul>
-        <a
-          href={waLink(msg)}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-5 inline-flex w-full justify-center items-center gap-2 rounded-full bg-primary text-primary-foreground px-4 py-3 text-sm font-semibold hover:brightness-110 transition"
+        <button
+          type="button"
+          onClick={() => onReserve(car)}
+          className="mt-6 inline-flex w-full justify-center items-center gap-2 rounded-full bg-primary text-primary-foreground px-4 py-3 text-sm font-semibold hover:brightness-110 transition shadow-lg shadow-primary/20"
         >
-          <WhatsAppIcon className="h-4 w-4" /> Réserver
-        </a>
+          <WhatsAppIcon className="h-4 w-4" /> {available ? "Réserver sur WhatsApp" : "Demander une alternative"}
+        </button>
       </div>
     </article>
   );
@@ -274,33 +326,29 @@ function CarCard({ car, delay }: { car: Car; delay: number }) {
 function Reserve() {
   return (
     <section id="reserve" className="py-24 relative">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          <div>
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+        <div>
             <div className="reveal text-xs uppercase tracking-[0.25em] text-gold">Réservation</div>
             <h2 className="reveal reveal-delay-1 mt-3 text-4xl sm:text-5xl font-bold">
               Réservez en <span className="text-gradient-gold">3 étapes</span>
             </h2>
-            <ol className="mt-10 space-y-6">
+            <ol className="mt-10 grid gap-4">
               {[
                 ["Choisissez votre voiture", "Parcourez notre flotte et sélectionnez le véhicule adapté à vos besoins."],
                 ["Envoyez-nous un message WhatsApp", "Cliquez sur Réserver, indiquez vos dates et le lieu de prise en charge."],
                 ["Récupérez les clés", "Livraison gratuite à Rabat (aéroport, hôtel, gare). Bonne route !"],
               ].map(([t, d], i) => (
-                <li key={t} className={`reveal reveal-delay-${(i % 3) + 1} flex gap-4`}>
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold text-gold-foreground font-bold font-display">
+                <li key={t} className={`reveal reveal-delay-${(i % 3) + 1} flex gap-5 rounded-3xl glass gold-border p-5`}>
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gold text-xl text-gold-foreground font-bold font-display shadow-lg shadow-gold/15">
                     {i + 1}
                   </div>
                   <div>
-                    <div className="font-semibold">{t}</div>
+                    <div className="text-lg font-semibold">{t}</div>
                     <p className="text-sm text-foreground/70 mt-1">{d}</p>
                   </div>
                 </li>
               ))}
             </ol>
-          </div>
-
-          <BookingForm />
         </div>
       </div>
     </section>
@@ -467,6 +515,68 @@ function Field({
   );
 }
 
+function ReservationModal({ car, onClose }: { car: Car; onClose: () => void }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  const [start, setStart] = useState(today);
+  const [end, setEnd] = useState(tomorrow);
+  const [pickup, setPickup] = useState("Rabat");
+  const [returnLocation, setReturnLocation] = useState("Rabat");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const invalidDates = new Date(end) <= new Date(start);
+  const days = invalidDates ? 0 : Math.max(1, Math.ceil((new Date(end).getTime() - new Date(start).getTime()) / 86400000));
+  const total = days * car.price;
+
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previous; };
+  }, []);
+
+  const format = (value: string) => new Date(`${value}T12:00:00`).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+  const confirm = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (invalidDates) return setError("La date de retour doit être après la date de départ.");
+    if (!firstName.trim() || !lastName.trim() || !phone.trim() || !pickup.trim() || !returnLocation.trim()) return setError("Merci de renseigner tous les champs obligatoires.");
+    const message = [
+      "Bonjour Rouling Car,", "", "Je souhaite réserver ce véhicule :", "",
+      `🚗 Véhicule : ${car.name}`, `🏷️ Catégorie : ${car.category}`, `⛽ Carburant : ${car.fuel}`, `⚙️ Transmission : ${car.transmission}`, "",
+      `📅 Date de départ : ${format(start)}`, `📅 Date de retour : ${format(end)}`, `📍 Lieu de prise en charge : ${pickup}`, `📍 Lieu de retour : ${returnLocation}`, "",
+      `💰 Prix : ${car.price} DH / jour`, `🧾 Durée : ${days} jours`, `✅ Total TTC : ${total} DH`, "",
+      `👤 Client : ${firstName} ${lastName}`, `📞 Téléphone : ${phone}`,
+      email.trim() ? `📧 Email : ${email.trim()}` : "", "", "Merci de confirmer la disponibilité."
+    ].filter(Boolean).join("\n");
+    window.open(waLink(message), "_blank", "noopener,noreferrer");
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/75 p-0 backdrop-blur-sm sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label={`Réserver ${car.name}`}>
+      <div className="modal-in w-full max-w-3xl overflow-hidden rounded-t-[2rem] border border-gold/30 bg-card shadow-2xl shadow-black/70 sm:max-h-[90vh] sm:rounded-[2rem]">
+        <div className="flex items-start justify-between bg-gradient-to-br from-red-700 via-primary to-red-950 px-6 py-6 sm:px-8">
+          <div><h2 className="text-2xl font-bold text-white">Réserver — {car.name}</h2><p className="mt-1 text-sm text-white/75">Confirmation immédiate · Livraison rapide</p></div>
+          <button type="button" onClick={onClose} aria-label="Fermer" className="grid h-10 w-10 place-items-center rounded-full bg-black/20 text-2xl text-white transition hover:bg-black/35">×</button>
+        </div>
+        <form onSubmit={confirm} className="max-h-[calc(90vh-104px)] overflow-y-auto p-5 sm:p-8">
+          <div className="flex flex-col gap-4 rounded-3xl border border-gold/20 bg-secondary/55 p-4 sm:flex-row sm:items-center">
+            <div className="h-24 w-full rounded-2xl bg-white/95 sm:w-36"><img src={car.image} alt={car.name} className="h-full w-full object-contain p-2" /></div>
+            <div className="flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-xl font-bold">{car.name}</h3><div className="text-xl font-bold text-gradient-gold">{car.price} DH <span className="text-xs text-foreground/60">/ jour</span></div></div><p className="mt-1 text-sm text-gold">{car.category}</p><p className="mt-2 text-xs text-foreground/65">{car.fuel} · {car.transmission} · {car.seats} places</p></div>
+          </div>
+          <div className="mt-7"><h3 className="text-lg font-bold">Dates & lieu</h3><div className="mt-4 grid gap-4 sm:grid-cols-2"><Field label="Date de départ"><input required type="date" min={today} value={start} onChange={e=>setStart(e.target.value)} className="input-base" /></Field><Field label="Date de retour"><input required type="date" min={start} value={end} onChange={e=>setEnd(e.target.value)} className="input-base" /></Field><Field label="Lieu de prise en charge"><input required value={pickup} onChange={e=>setPickup(e.target.value)} className="input-base" placeholder="Rabat, Aéroport, Hôtel, Gare…" /></Field><Field label="Lieu de retour"><input required value={returnLocation} onChange={e=>setReturnLocation(e.target.value)} className="input-base" placeholder="Rabat, Aéroport, Hôtel, Gare…" /></Field></div></div>
+          <div className="mt-5 rounded-2xl border border-gold/25 bg-gold/10 px-5 py-4"><div className="flex items-center justify-between text-sm text-foreground/70"><span>{days || "—"} jour{days > 1 ? "s" : ""} × {car.price} DH</span><span className="text-xs uppercase tracking-wider text-gold">Total TTC</span></div><div className="mt-1 text-right text-3xl font-bold text-gradient-gold">{total.toLocaleString("fr-MA")} DH</div></div>
+          <div className="mt-7"><h3 className="text-lg font-bold">Vos informations</h3><div className="mt-4 grid gap-4 sm:grid-cols-2"><Field label="Prénom"><input required value={firstName} onChange={e=>setFirstName(e.target.value)} className="input-base" /></Field><Field label="Nom"><input required value={lastName} onChange={e=>setLastName(e.target.value)} className="input-base" /></Field><Field label="Téléphone"><input required type="tel" value={phone} onChange={e=>setPhone(e.target.value)} className="input-base" placeholder="+212 …" /></Field><Field label="Email (optionnel)"><input type="email" value={email} onChange={e=>setEmail(e.target.value)} className="input-base" placeholder="vous@email.com" /></Field></div></div>
+          {error && <p className="mt-4 rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</p>}
+          <button type="submit" className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-6 py-4 font-semibold text-white shadow-xl shadow-primary/30 transition hover:brightness-110">🚗 Confirmer la réservation</button>
+          <p className="mt-3 text-center text-xs text-foreground/60">✅ Confirmation par WhatsApp · Aucun paiement requis maintenant</p>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function About() {
   const features = [
     ["Flotte récente", "Véhicules entretenus et révisés régulièrement."],
@@ -517,6 +627,81 @@ function About() {
   );
 }
 
+function WhyChooseUs() {
+  const items = [
+    ["Une expérience sans friction", "De la réservation à la remise des clés, tout est simple, rapide et humain.", SparkIcon],
+    ["Une flotte fiable", "Des véhicules récents, vérifiés et préparés avec le plus grand soin.", ShieldIcon],
+    ["La flexibilité marocaine", "Livraison à l'aéroport, à votre hôtel ou à la gare de Rabat.", TruckIcon],
+    ["Un service qui répond", "Une équipe locale disponible sur WhatsApp pour vous accompagner.", HeadsetIcon],
+  ] as const;
+  return (
+    <section className="py-24 border-y border-border/60">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="max-w-2xl">
+          <div className="reveal text-xs uppercase tracking-[0.25em] text-gold">L'expérience Rouling Car</div>
+          <h2 className="reveal reveal-delay-1 mt-3 text-4xl sm:text-5xl font-bold">Pourquoi choisir <span className="text-gradient-red">Rouling Car ?</span></h2>
+          <p className="reveal reveal-delay-2 mt-4 text-foreground/70">Une location de voiture pensée pour vous laisser profiter du Maroc, en toute confiance.</p>
+        </div>
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {items.map(([title, copy, Icon], i) => (
+            <article key={title} className={`reveal reveal-delay-${(i % 3) + 1} rounded-3xl glass gold-border p-6 transition hover:-translate-y-1 hover:bg-secondary/60`}>
+              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gold/10 ring-1 ring-gold/30"><Icon className="h-6 w-6 text-gold" /></div>
+              <h3 className="mt-6 text-xl font-bold">{title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-foreground/70">{copy}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Testimonials() {
+  const reviews = [
+    ["Yassine B.", "Rabat", "Service impeccable, voiture très propre et livraison directement à l'aéroport. Je recommande sans hésiter."],
+    ["Sarah M.", "France", "Réservation ultra simple sur WhatsApp. L'équipe était ponctuelle et très professionnelle du début à la fin."],
+    ["Omar E.", "Casablanca", "Tarifs clairs, aucun supplément surprise et une Clio en excellent état. Une vraie agence de confiance."],
+  ];
+  return (
+    <section className="py-24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+          <div><div className="reveal text-xs uppercase tracking-[0.25em] text-gold">Ils nous font confiance</div><h2 className="reveal reveal-delay-1 mt-3 text-4xl sm:text-5xl font-bold">Des trajets qui laissent <span className="text-gradient-gold">un bon souvenir.</span></h2></div>
+          <div className="reveal text-sm text-foreground/60">4.9/5 · Avis clients</div>
+        </div>
+        <div className="mt-12 grid gap-6 lg:grid-cols-3">
+          {reviews.map(([name, city, copy], i) => (
+            <figure key={name} className={`reveal reveal-delay-${(i % 3) + 1} rounded-3xl glass gold-border p-7`}>
+              <div className="flex gap-1 text-gold" aria-label="5 étoiles">★★★★★</div>
+              <blockquote className="mt-5 text-lg leading-relaxed text-foreground/85">“{copy}”</blockquote>
+              <figcaption className="mt-6 flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-full bg-primary font-bold text-white">{name[0]}</div><div><div className="font-semibold">{name}</div><div className="text-xs text-foreground/55">Client Rouling Car · {city}</div></div></figcaption>
+            </figure>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FAQ() {
+  const questions = [
+    ["Quels documents sont nécessaires pour louer une voiture ?", "Une pièce d'identité ou passeport, un permis de conduire valide et les informations de votre réservation suffisent."],
+    ["Puis-je être livré à l'aéroport de Rabat-Salé ?", "Oui. Nous proposons la livraison à l'aéroport, à votre hôtel et à la gare à Rabat."],
+    ["L'assurance est-elle incluse ?", "Oui, nos locations incluent une couverture d'assurance. Notre équipe vous explique les conditions lors de la réservation."],
+    ["Comment réserver ?", "Choisissez votre véhicule puis envoyez-nous vos dates sur WhatsApp. Nous vous confirmons rapidement la disponibilité."],
+  ];
+  return (
+    <section className="py-24 border-t border-border/60">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+        <div className="text-center"><div className="reveal text-xs uppercase tracking-[0.25em] text-gold">Questions fréquentes</div><h2 className="reveal reveal-delay-1 mt-3 text-4xl sm:text-5xl font-bold">Tout est <span className="text-gradient-red">clair.</span></h2></div>
+        <div className="mt-10 space-y-3">
+          {questions.map(([q, a], i) => <details key={q} className={`reveal reveal-delay-${(i % 3) + 1} group rounded-2xl glass gold-border px-5 py-1`}><summary className="cursor-pointer list-none py-5 pr-8 font-semibold marker:content-none"><span>{q}</span><span className="float-right text-gold transition group-open:rotate-45">+</span></summary><p className="pb-5 pr-6 text-sm leading-relaxed text-foreground/70">{a}</p></details>)}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function Contact() {
   return (
     <section id="contact" className="py-24">
@@ -546,6 +731,10 @@ function Contact() {
                   </div>
                 </li>
               ))}
+              <li className="flex items-start gap-3">
+                <ClockIcon className="h-5 w-5 text-gold mt-1" />
+                <div><div className="font-semibold">Horaires</div><div className="text-foreground/70">Tous les jours · 08:00 — 22:00</div></div>
+              </li>
             </ul>
 
             <a
@@ -556,8 +745,9 @@ function Contact() {
             >
               <WhatsAppIcon className="h-5 w-5" /> Discutons sur WhatsApp
             </a>
+            <div className="mt-6 flex items-center gap-3 text-sm text-foreground/60"><span>Suivez-nous</span><a href="https://instagram.com" target="_blank" rel="noreferrer" className="rounded-full border border-gold/30 px-3 py-1.5 hover:text-gold">Instagram</a><a href="https://facebook.com" target="_blank" rel="noreferrer" className="rounded-full border border-gold/30 px-3 py-1.5 hover:text-gold">Facebook</a></div>
           </div>
-          <div className="min-h-[360px] relative">
+          <div className="min-h-[420px] relative bg-secondary/40">
             <iframe
               title="Rouling Car à Rabat"
               src="https://www.google.com/maps?q=Rabat,+Maroc&output=embed"
@@ -565,7 +755,8 @@ function Contact() {
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
             />
-            <div className="absolute inset-0 pointer-events-none ring-1 ring-inset ring-gold/20" />
+            <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-background/55 via-transparent to-transparent ring-1 ring-inset ring-gold/20" />
+            <div className="absolute bottom-6 left-6 rounded-2xl glass gold-border px-4 py-3"><div className="text-xs uppercase tracking-widest text-gold">Notre agence</div><div className="mt-1 font-semibold">Rabat, Maroc</div></div>
           </div>
         </div>
       </div>
@@ -621,6 +812,11 @@ function ArrowRight({ className = "" }: { className?: string }) { return <svg vi
 function Check({ className = "" }: { className?: string }) { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={className}><path d="M20 6L9 17l-5-5"/></svg>; }
 function PhoneIcon({ className = "" }: { className?: string }) { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>; }
 function MapPin({ className = "" }: { className?: string }) { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>; }
+function ShieldIcon({ className = "" }: { className?: string }) { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}><path d="M12 3l7 3v5c0 5-3.4 8.7-7 10-3.6-1.3-7-5-7-10V6l7-3z"/><path d="m9 12 2 2 4-4"/></svg>; }
+function TruckIcon({ className = "" }: { className?: string }) { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}><path d="M3 5h11v11H3zM14 9h4l3 3v4h-7z"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg>; }
+function HeadsetIcon({ className = "" }: { className?: string }) { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><path d="M4 14h3v5H6a2 2 0 0 1-2-2v-3zm16 0h-3v5h1a2 2 0 0 0 2-2v-3zM17 19c0 2-2 2-5 2"/></svg>; }
+function SparkIcon({ className = "" }: { className?: string }) { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}><path d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7L12 3z"/><path d="m19 16 .7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7L19 16z"/></svg>; }
+function ClockIcon({ className = "" }: { className?: string }) { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>; }
 function UsersIcon({ className = "" }: { className?: string }) { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>; }
 function GearIcon({ className = "" }: { className?: string }) { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>; }
 function FuelIcon({ className = "" }: { className?: string }) { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}><path d="M3 22h12V4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v18z"/><path d="M15 8h2a2 2 0 0 1 2 2v6a2 2 0 0 0 4 0V9l-3-3"/></svg>; }

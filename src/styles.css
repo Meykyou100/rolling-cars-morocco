@@ -155,4 +155,7 @@
 
   @keyframes spinSlow { to { transform: rotate(360deg); } }
   .anim-spin-slow { animation: spinSlow 22s linear infinite; }
+
+  @keyframes modalIn { from { opacity: 0; transform: translateY(22px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  .modal-in { animation: modalIn .28s cubic-bezier(.2,.8,.2,1) both; }
 }
