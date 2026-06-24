@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, useMemo, useEffect } from "react";
 import { useReveal } from "@/hooks/use-reveal";
 import logoImg from "@/assets/rolling-car-logo-transparent.png";
-import heroImg from "@/assets/hero.jpg";
+import nightBackgroundImg from "@/assets/marrakech-night-background.png";
+import aboutTucsonImg from "@/assets/about-tucson.png";
 import daciaImg from "@/assets/dacia-logan.jpg";
 import clioImg from "@/assets/renault-clio.jpg";
 import tucsonImg from "@/assets/hyundai-tucson.jpg";
@@ -15,8 +16,8 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "Louez Dacia Logan, Renault Clio 5, Hyundai Tucson et plus à Rabat. Réservation WhatsApp instantanée avec Rouling Car." },
       { property: "og:title", content: "Rouling Car — Location de Voitures à Rabat" },
       { property: "og:description", content: "Réservez votre voiture à Rabat en quelques secondes via WhatsApp." },
-      { property: "og:image", content: heroImg },
-      { name: "twitter:image", content: heroImg },
+      { property: "og:image", content: nightBackgroundImg },
+      { name: "twitter:image", content: nightBackgroundImg },
     ],
   }),
   component: Index,
@@ -120,7 +121,7 @@ function Hero() {
   return (
     <section id="top" className="relative pt-36 pb-20 sm:pb-28 min-h-[94vh] flex items-center">
       <div className="absolute inset-0 -z-10">
-        <img src={heroImg} alt="" className="h-full w-full object-cover opacity-40" />
+        <img src={nightBackgroundImg} alt="" className="h-full w-full object-cover opacity-50" />
         <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/70 to-background" />
       </div>
 
@@ -253,7 +254,7 @@ function TrustBadges() {
 
 function Fleet({ cars, onReserve }: { cars: Car[]; onReserve: (car: Car) => void }) {
   return (
-    <section id="fleet" className="py-24">
+    <section id="fleet" className="pb-0 pt-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="max-w-2xl">
           <div className="reveal text-xs uppercase tracking-[0.25em] text-gold">Notre flotte</div>
@@ -325,7 +326,7 @@ function CarCard({ car, delay, onReserve }: { car: Car; delay: number; onReserve
 
 function Reserve() {
   return (
-    <section id="reserve" className="py-24 relative">
+    <section id="reserve" className="pb-24 pt-0 relative">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <div>
             <div className="reveal text-xs uppercase tracking-[0.25em] text-gold">Réservation</div>
@@ -589,7 +590,7 @@ function About() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 grid lg:grid-cols-2 gap-12 items-center">
         <div className="reveal">
           <div className="relative rounded-3xl overflow-hidden gold-border">
-            <img src={heroImg} alt="Rouling Car à Rabat" className="w-full h-[420px] object-cover" loading="lazy" />
+            <img src={aboutTucsonImg} alt="Hyundai Tucson de Rouling Car" className="w-full h-[420px] object-cover" loading="lazy" />
             <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent" />
             <div className="absolute bottom-6 left-6 right-6 flex items-center justify-between">
               <Logo className="h-12 w-auto" />
